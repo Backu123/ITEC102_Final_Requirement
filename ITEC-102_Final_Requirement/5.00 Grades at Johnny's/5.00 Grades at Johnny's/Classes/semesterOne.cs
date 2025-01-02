@@ -13,35 +13,46 @@ namespace Sample_Game_1.Classes
     public class semesterOne
     {
         private static bool skip = false;
-        public static void SlowPrint(string text, int delay = 40)
+private static readonly object lockObject = new object();
+
+public static void SlowPrint(string text, int delay = 40)
+{
+    CancellationTokenSource cts = new CancellationTokenSource();
+    Thread inputThread = new Thread(() =>
+    {
+        while (!cts.Token.IsCancellationRequested)
         {
-            Thread inputThread = new Thread(() =>
+            if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Enter)
             {
-                while (!skip)
+                lock (lockObject)
                 {
-                    if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Enter)
-                    {
-                        skip = true;
-                    }
+                    skip = true;
                 }
-            });
-            inputThread.Start();
-
-            foreach (char c in text)
-            {
-                if (skip)
-                {
-                    delay = 0;
-                }
-
-                Console.Write(c);
-                Thread.Sleep(delay);  // Adjust the delay for slower or faster text display
             }
-            Console.WriteLine();
-            skip = false;
-            inputThread.Abort();
-
         }
+    });
+    inputThread.Start();
+
+    foreach (char c in text)
+    {
+        lock (lockObject)
+        {
+            if (skip)
+            {
+                delay = 0;
+            }
+        }
+
+        Console.Write(c);
+        Thread.Sleep(delay);  // Adjust the delay for slower or faster text display
+    }
+    Console.WriteLine();
+
+    // Signal the input thread to stop
+    cts.Cancel();
+    inputThread.Join(); // Wait for the input thread to finish
+    skip = false; // Reset skip for future calls
+}
         public static void start()
         {
             List<double> evaluatedGrade = new List<double>();
